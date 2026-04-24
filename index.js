@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -11,21 +12,35 @@ const ClientRoutes = require('./src/routes/ClientRoutes');
 const lessonRoutes = require('./src/routes/lessonRoutes');
 const feedRoutes =  require("./src/routes/feedRoutes")
 const payementRoutes =  require("./src/routes/paymentRoute")
-require('dotenv').config();
+
 
 const app = express();
-connectDB();
+// connectDB();
+
+connectDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Serveur démarré sur le port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error("❌ Erreur MongoDB :", err);
+  });
 
 // Middlewares de sécurité et logs
 app.use(helmet({
   crossOriginResourcePolicy: false
 }));
 // app.use(cors());
-app.use(cors({
-  origin: [
+const allowedOrigins = [
   process.env.CLIENT_URL,
-  process.env.FRONTEND_URL
-],
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "https://ton-front-vercel.vercel.app"
+].filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json()); // Pour lire le JSON que le Frontend envoie
@@ -33,7 +48,9 @@ app.use(morgan('dev'));
 
 
 
-
+app.get("/", (req, res) => {
+  res.send("API UpBuys backend is running 🚀");
+});
 
 // Route de test
 app.use('/api/fans', 
@@ -50,5 +67,5 @@ app.use('/api/payments', payementRoutes);
 // Lancement du serveur
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`✅ Serveur démarré sur le port ${PORT}`);
 });
