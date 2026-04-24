@@ -1,0 +1,14 @@
+// routes/paymentRoutes.js
+const express = require('express');
+const router = express.Router();
+const paymentController = require('../controllers/paymentController');
+const fanMiddleware = require('../middlewares/fanMiddleware');
+
+// 1. Initier le paiement (Générer le lien FedaPay)
+router.post('/initiate', fanMiddleware, paymentController.initiatePayment);
+
+// 2. Vérifier le statut (Après redirection de l'élève)
+router.get('/callback/:transactionId', paymentController.verifyPayment);
+router.get('/check/:courseId', fanMiddleware, paymentController.check);
+
+module.exports = router;
