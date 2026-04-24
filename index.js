@@ -36,7 +36,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://up-buys-vudv.vercel.app",
-  "https://up-buys-9t8069yua-sakas-projects-72448c3c.vercel.app"
+  "https://up-buys-potkg7cmx-sakas-projects-72448c3c.vercel.app/"
 ];
 
 app.use(cors({
