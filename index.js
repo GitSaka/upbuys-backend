@@ -33,23 +33,17 @@ app.use(helmet({
 }));
 // app.use(cors());
 const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
   "http://localhost:5173",
-  "http://localhost:3000",
-  "https://up-buys-vudv.vercel.app",
-  "https://up-buys-potkg7cmx-sakas-projects-72448c3c.vercel.app/"
-];
+  "https://up-buys-potkg7cmx-sakas-projects-72448c3c.vercel.app"
+].filter(Boolean);
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // autorise les requêtes sans origin (Postman, mobile, etc.)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error("Not allowed by CORS"));
-  },
+  origin: [
+    "http://localhost:5173",
+    /\.vercel\.app$/   // 🔥 accepte tous les Vercel
+  ],
   credentials: true
 }));
 app.use(express.json()); // Pour lire le JSON que le Frontend envoie
