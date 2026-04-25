@@ -59,7 +59,7 @@ exports.initiatePayment = async (req, res) => {
             lastname: "Empire",
             email: req.user.email || 'saka@gmail.com',
           },
-          callback_url: `http://localhost:5000/api/payments/callback/${existingPending._id}`
+          callback_url: `${process.env.BACKEND_URL}/api/payments/callback/${existingPending._id}`
         });
         token = await fedaTx.generateToken();
 
@@ -99,7 +99,7 @@ exports.initiatePayment = async (req, res) => {
         lastname: "Empire",
         email: req.user.email || 'saka@gmail.com',
       },
-      callback_url: `http://localhost:5000/api/payments/callback/${localTx._id}`
+      callback_url: `${process.env.BACKEND_URL}/api/payments/callback/${localTx._id}`
     });
 
     token = await fedaTx.generateToken();
@@ -171,13 +171,13 @@ exports.verifyPayment = async (req, res) => {
       console.log("Enrollment updated:", enrollment._id);
 
       return res.redirect(
-        `http://localhost:5173/empire/success/${transactionId}?status=approved&id=${fedaTransactionId}`
+        `${process.env.FRONTEND_VERSEL_URL}/empire/success/${transactionId}?status=approved&id=${fedaTransactionId}`
       );
     }
 
     // 🔹 Paiement refusé ou autre statut → rediriger vers failed
     return res.redirect(
-      `http://localhost:5173/empire/failed/${transactionId}?status=${fedaTx.status}&id=${fedaTransactionId}`
+      `${process.env.FRONTEND_VERSEL_URL}/empire/failed/${transactionId}?status=${fedaTx.status}&id=${fedaTransactionId}`
     );
 
   } catch (error) {
