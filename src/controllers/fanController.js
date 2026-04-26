@@ -104,169 +104,265 @@ exports.registerOrLogin = async (req, res) => {
 
 
 // --- FONCTION 1 : LE RADAR (Appelé par handleCheckPhone) ---
+// exports.authCheck = async (req, res) => {
+//   try {
+//     const { phoneNumber, countryCode, coachSlug, coachId } = req.body;
+
+//     const fullPhone = countryCode + phoneNumber;
+
+//     let coach;
+
+//     if (coachId) {
+//       coach = await User.findById(coachId);
+//     } else if (coachSlug) {
+//       coach = await User.findOne({ slug: coachSlug });
+//     }
+
+//     if (!coach) {
+//       return res.status(404).json({ message: "Coach introuvable" });
+//     }
+
+//     // 🔥 Recherche par (phone + coach)
+//     const fan = await Fan.findOne({
+//       phoneNumber: fullPhone,
+//       coachId: coach._id
+//     });
+
+//     if (!fan) {
+//       return res.status(200).json({ action: "NEED_INFO" });
+//     } else {
+//       return res.status(200).json({ action: "NEED_PASSWORD" });
+//     }
+
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
 exports.authCheck = async (req, res) => {
   try {
-    const { phoneNumber, countryCode, coachSlug, coachId } = req.body;
 
-    const fullPhone = countryCode + phoneNumber;
-
-    let coach;
-
-    if (coachId) {
-      coach = await User.findById(coachId);
-    } else if (coachSlug) {
-      coach = await User.findOne({ slug: coachSlug });
+    
+    const { identifier, type, countryCode, coachId } = req.body;
+    
+    // On initialise la base de la requête avec le coach
+    let query = { coachId: coachId };
+    
+    if (type === 'EMAIL') {
+      // .trim() est crucial pour éviter les espaces invisibles
+      query.email = identifier.trim().toLowerCase();
+    } else {
+      // Nettoyage : On enlève les espaces du countryCode et du numéro
+      const cleanCode = countryCode.trim();
+      const cleanPhone = identifier.trim();
+      query.phoneNumber = cleanCode + cleanPhone;
     }
 
-    if (!coach) {
-      return res.status(404).json({ message: "Coach introuvable" });
-    }
+    console.log("🔍 Recherche avec la requête :", query); // Debugging
 
-    // 🔥 Recherche par (phone + coach)
-    const fan = await Fan.findOne({
-      phoneNumber: fullPhone,
-      coachId: coach._id
-    });
+    const fan = await Fan.findOne(query);
 
     if (!fan) {
       return res.status(200).json({ action: "NEED_INFO" });
     } else {
       return res.status(200).json({ action: "NEED_PASSWORD" });
     }
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+
+
 // --- FONCTION 2 : LE MOTEUR (Appelé par handleFinalAuth) ---
+// exports.handleAuth = async (req, res) => {
+//   try {
+//     const {
+//       phoneNumber,
+//       countryCode,
+//       name,
+//       password,
+//       isExistingUser,
+//       coachSlug,
+//       coachId
+//     } = req.body;
+
+//     const fullPhone = countryCode + phoneNumber;
+
+//     // =========================
+//     // 🔎 1️⃣ Trouver le coach
+//     // =========================
+//     let coach;
+
+//     if (coachId) {
+//       coach = await User.findById(coachId);
+//     } else if (coachSlug) {
+//       coach = await User.findOne({ slug: coachSlug });
+//     }
+
+//     if (!coach) {
+//       return res.status(404).json({ message: "Coach introuvable" });
+//     }
+
+//     // =========================
+//     // 🔐 2️⃣ CAS LOGIN
+//     // =========================
+//     if (isExistingUser) {
+
+//       // 🔥 Recherche par (phone + coach)
+//       const fan = await Fan.findOne({
+//         phoneNumber: fullPhone,
+//         coachId: coach._id
+//       }).select("password coachId name");
+      
+//       if (!fan) {
+//         return res.status(404).json({ message: "Compte introuvable dans cet empire" });
+//       }
+
+//       const isMatch = await bcrypt.compare(password, fan.password);
+      
+//       if (!isMatch) {
+//         return res.status(401).json({ message: "Mot de passe incorrect" });
+//       }
+
+//       const token = jwt.sign(
+//         {
+//           id: fan._id,
+//           coachId: coach._id,
+//           name: fan.name,
+//           role:'fan'
+//         },
+//         process.env.JWT_SECRET,
+//         { expiresIn: "30d" }
+//       );
+
+//       return res.status(200).json({
+//         success: true,
+//         token,
+//         fanName: fan.name,
+//         tel: phoneNumber,
+//         id: fan._id
+//       });
+//     }
+
+//     // =========================
+//     // 🆕 3️⃣ CAS REGISTER
+//     // =========================
+//     else {
+
+//       // 🔥 Vérifie si le numéro existe déjà DANS CET EMPIRE
+//       const existingFan = await Fan.findOne({
+//         phoneNumber: fullPhone,
+//         coachId: coach._id
+//       });
+
+//       if (existingFan) {
+//         return res.status(400).json({
+//           message: "Ce numéro est déjà utilisé dans cet empire"
+//         });
+//       }
+
+//       const hashedPassword = await bcrypt.hash(password, 10);
+
+//       const newFan = new Fan({
+//         name,
+//         phoneNumber: fullPhone,
+//         password: hashedPassword,
+//         status: "Prospect",
+//         coachId: coach._id
+//       });
+
+//       await newFan.save();
+
+//       const token = jwt.sign(
+//         {
+//           id: newFan._id,
+//           coachId: coach._id,
+//           name: newFan.name,
+//           role:'fan'
+//         },
+//         process.env.JWT_SECRET,
+//         { expiresIn: "30d" }
+//       );
+
+//       return res.status(201).json({
+//         success: true,
+//         token,
+//         fanName: name,
+//         tel: phoneNumber,
+//         id: newFan._id
+//       });
+//     }
+
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
 exports.handleAuth = async (req, res) => {
   try {
-    const {
-      phoneNumber,
-      countryCode,
-      name,
-      password,
-      isExistingUser,
-      coachSlug,
-      coachId
-    } = req.body;
+    const { identifier, type, countryCode, name, email, password, isExistingUser, coachId } = req.body;
 
-    const fullPhone = countryCode + phoneNumber;
+    // 1. Définir l'identifiant de recherche (FullPhone ou Email)
+    const searchIdentifier = type === 'EMAIL' ? identifier.toLowerCase() : countryCode + identifier;
+    const searchField = type === 'EMAIL' ? 'email' : 'phoneNumber';
 
-    // =========================
-    // 🔎 1️⃣ Trouver le coach
-    // =========================
-    let coach;
-
-    if (coachId) {
-      coach = await User.findById(coachId);
-    } else if (coachSlug) {
-      coach = await User.findOne({ slug: coachSlug });
-    }
-
-    if (!coach) {
-      return res.status(404).json({ message: "Coach introuvable" });
-    }
-
-    // =========================
-    // 🔐 2️⃣ CAS LOGIN
-    // =========================
+    // 2. CAS LOGIN
     if (isExistingUser) {
-
-      // 🔥 Recherche par (phone + coach)
-      const fan = await Fan.findOne({
-        phoneNumber: fullPhone,
-        coachId: coach._id
-      }).select("password coachId name");
+      const fan = await Fan.findOne({ [searchField]: searchIdentifier, coachId });
       
-      if (!fan) {
-        return res.status(404).json({ message: "Compte introuvable dans cet empire" });
-      }
+      if (!fan) return res.status(404).json({ message: "Compte introuvable" });
 
       const isMatch = await bcrypt.compare(password, fan.password);
-      
-      if (!isMatch) {
-        return res.status(401).json({ message: "Mot de passe incorrect" });
-      }
+      if (!isMatch) return res.status(401).json({ message: "Mot de passe incorrect" });
 
-      const token = jwt.sign(
-        {
-          id: fan._id,
-          coachId: coach._id,
-          name: fan.name,
-          role:'fan'
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "30d" }
-      );
+      const token = jwt.sign({ id: fan._id, coachId, name: fan.name, role: 'fan' }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
-      return res.status(200).json({
-        success: true,
-        token,
-        fanName: fan.name,
-        tel: phoneNumber,
-        id: fan._id
-      });
-    }
+      return res.status(200).json({ success: true, token, fanName: fan.name, id: fan._id });
+    } 
 
-    // =========================
-    // 🆕 3️⃣ CAS REGISTER
-    // =========================
+    // 3. CAS REGISTER
     else {
-
-      // 🔥 Vérifie si le numéro existe déjà DANS CET EMPIRE
-      const existingFan = await Fan.findOne({
-        phoneNumber: fullPhone,
-        coachId: coach._id
+      // Vérifier si l'utilisateur existe déjà sous l'une des deux formes
+      const existing = await Fan.findOne({
+        coachId,
+        $or: [
+          { email: type === 'EMAIL' ? identifier.toLowerCase() : email.toLowerCase() },
+          { phoneNumber: type === 'PHONE' ? searchIdentifier : undefined }
+        ].filter(Boolean)
       });
 
-      if (existingFan) {
-        return res.status(400).json({
-          message: "Ce numéro est déjà utilisé dans cet empire"
-        });
-      }
+      if (existing) return res.status(400).json({ message: "Cet email ou numéro est déjà utilisé ici" });
 
       const hashedPassword = await bcrypt.hash(password, 10);
-
+      
       const newFan = new Fan({
         name,
-        phoneNumber: fullPhone,
+        // On s'assure d'avoir TOUJOURS l'email pour les futurs paiements
+        email: type === 'EMAIL' ? identifier.toLowerCase() : email.toLowerCase(),
+        phoneNumber: type === 'PHONE' ? searchIdentifier : null,
+        countryCode: type === 'PHONE' ? countryCode : null,
         password: hashedPassword,
         status: "Prospect",
-        coachId: coach._id
+        coachId
       });
 
       await newFan.save();
 
-      const token = jwt.sign(
-        {
-          id: newFan._id,
-          coachId: coach._id,
-          name: newFan.name,
-          role:'fan'
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "30d" }
-      );
+      const token = jwt.sign({ id: newFan._id, coachId, name: newFan.name, role: 'fan' }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
-      return res.status(201).json({
-        success: true,
-        token,
-        fanName: name,
-        tel: phoneNumber,
-        id: newFan._id
-      });
+      return res.status(201).json({ success: true, token, fanName: name, id: newFan._id });
     }
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+
 exports.updateMe = async (req, res) => {
   try {
     const fanId = req.user.id;
+    const coachId = req.user.coachId;
 
     const allowedFields = ["name", "email", "city", "avatar"];
     const updates = {};
@@ -278,7 +374,7 @@ exports.updateMe = async (req, res) => {
     });
 
     const updatedFan = await Fan.findByIdAndUpdate(
-      fanId,
+       { _id: fanId, coachId: coachId },
       updates,
       { new: true, runValidators: true }
     ).select("-password -otpCode");

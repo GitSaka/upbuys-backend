@@ -1,38 +1,49 @@
 const mongoose = require('mongoose');
 
 const FanSchema = new mongoose.Schema({
-  // --- IDENTITÉ (L'essentiel) ---
   name: { type: String, trim: true },
-  phoneNumber: { type: String, required: true, unique: true }, // Identifiant Unique (WhatsApp)
-  countryCode: { type: String, default: "+229" },
-  password:{
-    type: String,
-    required:true
+  
+  // 📱 TELEPHONE : Plus de 'required: true' pour laisser le choix
+  // Mais on garde 'sparse: true' pour que l'index unique ignore les valeurs nulles
+  phoneNumber: { 
+    type: String, 
+    trim: true, 
+    unique: true, 
+    sparse: true 
+  }, 
+  
+  countryCode: { type: String, default: "+225" },
+
+  // 📧 EMAIL : Devient un identifiant possible
+  email: { 
+    type: String, 
+    trim: true, 
+    lowercase: true, 
+    unique: true, 
+    sparse: true 
   },
 
-    // 💎 AJOUTS LUXE POUR LE PROFIL
-  email: { type: String, trim: true, lowercase: true,default:"" }, // Pour les factures 📧
-  avatar: { type: String, default: "" },               // URL Cloudinary 📸
-  city: { type: String, default: "" },                 // Localisation 🌍
-  
-  // --- SÉCURITÉ ---
-  otpCode: { type: String, default: null }, // Pour la connexion sans mot de passe
-  emergencyContact: { type: String, default: "" }, 
+  password: {
+    type: String,
+    required: true
+  },
 
-  // --- BUSINESS INTELLIGENCE (L'ancien Lead) ---
+  avatar: { type: String, default: "" },
+  city: { type: String, default: "" },
+  
   status: { 
     type: String, 
     enum: ['Prospect', 'Client'], 
     default: 'Prospect' 
   },
-  coachId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  // On traque ce qu'il a regardé ou voulu regarder
-  interests: [{ 
-    courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
-    date: { type: Date, default: Date.now }
-  }],
-  
-  // On traque ce qu'il a RÉELLEMENT payé
+
+  // 🏰 L'EMPIRE : Indispensable pour savoir chez quel coach il est
+  coachId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+
   purchasedCourses: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Course' 
@@ -40,5 +51,9 @@ const FanSchema = new mongoose.Schema({
 
   lastVisit: { type: Date, default: Date.now }
 }, { timestamps: true });
+
+// 🔒 INDEX COMPOSÉ : Un fan est unique PAR COACH pour son email ou tel
+// Cela permet à un même client d'exister dans plusieurs "Empires" différents
+// sans créer de conflit de base de données globale.
 
 module.exports = mongoose.model('Fan', FanSchema);

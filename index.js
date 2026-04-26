@@ -12,6 +12,7 @@ const ClientRoutes = require('./src/routes/ClientRoutes');
 const lessonRoutes = require('./src/routes/lessonRoutes');
 const feedRoutes =  require("./src/routes/feedRoutes")
 const payementRoutes =  require("./src/routes/paymentRoute")
+const coachRoute =  require("./src/routes/coachRoute")
 
 
 const app = express();
@@ -60,6 +61,7 @@ app.use('/api/fans',
 routesFan,
 );
 app.use('/api/auth', authRoutes);
+app.use('/api/coach', coachRoute);
 // app.use('/api/admin', adminRoutes);
 app.use('/api/admin', CoursesRoutes);
 app.use('/api/client', ClientRoutes);

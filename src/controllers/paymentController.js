@@ -127,6 +127,27 @@ exports.initiatePayment = async (req, res) => {
 };
 
 
+// exports.verifyPayment = async (req, res) => {
+//   try {
+//     const { transactionId } = req.params;
+
+//     const localTx = await Transaction.findById(transactionId);
+//     if (!localTx) {
+//       return res.redirect(`${process.env.FRONTEND_URL}/failed`);
+//     }
+
+//     if (localTx.status === "approved") {
+//       return res.redirect(`${process.env.FRONTEND_URL}/success/${transactionId}`);
+//     }
+
+//     return res.redirect(`${process.env.FRONTEND_URL}/pending/${transactionId}`);
+
+//   } catch (error) {
+//     return res.redirect(`${process.env.FRONTEND_URL}/failed`);
+//   }
+// };
+
+
 exports.verifyPayment = async (req, res) => {
   try {
     const { transactionId } = req.params;
@@ -186,11 +207,71 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
+exports.fedapayWebhook = async (req, res) => {
+  // 1. Récupérer la signature envoyée par FedaPay (Sécurité)
+  const sig = req.headers['x-fedapay-signature'];
+  const endpointSecret = process.env.FEDAPAY_WEBHOOK_SECRET; 
+
+  let event;
+
+  try {
+    // Si tu as configuré une clé secrète, on vérifie la signature ici
+    // Pour l'instant, on récupère le corps de la requête
+    event = req.body; 
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // 2. Analyser l'événement (FedaPay envoie 'transaction.approved')
+  const status = event.status;
+  const fedaId = event.id; // L'ID chez FedaPay
+  const amount = event.amount;
+
+  // 🎯 IMPORTANT : On récupère notre transaction locale via l'ID FedaPay
+  const txn = await Transaction.findOne({ fedaTransactionId: fedaId });
+
+  if (!txn) {
+    console.log("⚠️ Transaction non trouvée pour l'ID FedaPay:", fedaId);
+    return res.sendStatus(404);
+  }
+
+  // 3. Si le paiement est approuvé
+  if (status === 'approved') {
+    // Éviter les doublons
+    if (txn.fedaTransactionId && txn.status === 'approved') {
+      return res.sendStatus(200);
+    }
+
+    // Mettre à jour la transaction locale
+    txn.status = 'approved';
+    await txn.save();
+
+    // 🏆 DONNER ACCÈS AU COURS (Enrollment)
+    await Enrollment.findOneAndUpdate(
+      { student: txn.customerId, course: txn.courseId },
+      {
+        student: txn.customerId,
+        course: txn.courseId,
+        coach: txn.coachId,
+        transaction: txn._id,
+        status: "active"
+      },
+      { upsert: true }
+    );
+
+    console.log(`✅ Accès accordé au client ${txn.customerId} pour le cours ${txn.courseId}`);
+  }
+
+  // Toujours renvoyer 200 à FedaPay pour dire "Message bien reçu"
+  res.sendStatus(200);
+};
+
+
 // routes/enrollmentRoutes.js
 exports.check = async (req, res) => {
   try {
     const { courseId } = req.params;
-    console.log(courseId)
+   
     const userId = req.user?.id;
    
     if (!userId) {

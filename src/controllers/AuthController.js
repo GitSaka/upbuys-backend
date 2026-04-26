@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
 
    // 2. ⚡ GÉNÉRATION DU SLUG SOUVERAIN
     const baseSlug = slugify(storeName);
-    console.log(baseSlug);
+    
 
     const phoneSuffix = telephone.slice(-4); // On prend les 4 derniers chiffres
     const finalSlug = `${baseSlug}-${phoneSuffix}`;
