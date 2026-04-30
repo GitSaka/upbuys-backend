@@ -8,7 +8,7 @@ const FanSchema = new mongoose.Schema({
   phoneNumber: { 
     type: String, 
     trim: true, 
-    unique: true, 
+    
     sparse: true 
   }, 
   
@@ -19,7 +19,7 @@ const FanSchema = new mongoose.Schema({
     type: String, 
     trim: true, 
     lowercase: true, 
-    unique: true, 
+    
     sparse: true 
   },
 
