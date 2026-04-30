@@ -303,43 +303,52 @@ exports.handleAuth = async (req, res) => {
   try {
     const { identifier, type, countryCode, name, email, password, isExistingUser, coachId } = req.body;
 
-    // 1. Définir l'identifiant de recherche (FullPhone ou Email)
-    const searchIdentifier = type === 'EMAIL' ? identifier.toLowerCase() : countryCode + identifier;
+    // 1. On nettoie les entrées
+    const cleanIdentifier = identifier.trim().toLowerCase();
+    const searchIdentifier = type === 'EMAIL' ? cleanIdentifier : (countryCode + identifier.trim());
     const searchField = type === 'EMAIL' ? 'email' : 'phoneNumber';
 
     // 2. CAS LOGIN
     if (isExistingUser) {
       const fan = await Fan.findOne({ [searchField]: searchIdentifier, coachId });
       
-      if (!fan) return res.status(404).json({ message: "Compte introuvable" });
+      if (!fan) return res.status(404).json({ message: "Compte introuvable dans cet empire" });
 
       const isMatch = await bcrypt.compare(password, fan.password);
       if (!isMatch) return res.status(401).json({ message: "Mot de passe incorrect" });
 
       const token = jwt.sign({ id: fan._id, coachId, name: fan.name, role: 'fan' }, process.env.JWT_SECRET, { expiresIn: "30d" });
-
       return res.status(200).json({ success: true, token, fanName: fan.name, id: fan._id });
     } 
 
     // 3. CAS REGISTER
     else {
-      // Vérifier si l'utilisateur existe déjà sous l'une des deux formes
+      // 🛡️ CONSTRUCTION DYNAMIQUE DE LA RECHERCHE DOUBLON
+      // On ne cherche QUE ce qui est réellement rempli pour éviter les conflits 'null' ou 'undefined'
+      let duplicateCheck = [];
+      
+      if (type === 'EMAIL') {
+        duplicateCheck.push({ email: cleanIdentifier });
+      } else {
+        duplicateCheck.push({ phoneNumber: searchIdentifier });
+        if (email) duplicateCheck.push({ email: email.trim().toLowerCase() });
+      }
+
       const existing = await Fan.findOne({
         coachId,
-        $or: [
-          { email: type === 'EMAIL' ? identifier.toLowerCase() : email.toLowerCase() },
-          { phoneNumber: type === 'PHONE' ? searchIdentifier : undefined }
-        ].filter(Boolean)
+        $or: duplicateCheck
       });
 
-      if (existing) return res.status(400).json({ message: "Cet email ou numéro est déjà utilisé ici" });
+      // Si MongoDB trouve un fan avec l'UN des deux critères chez CE coach
+      if (existing) {
+        return res.status(400).json({ message: "Cet email ou numéro est déjà utilisé chez ce coach" });
+      }
 
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const newFan = new Fan({
         name,
-        // On s'assure d'avoir TOUJOURS l'email pour les futurs paiements
-        email: type === 'EMAIL' ? identifier.toLowerCase() : email.toLowerCase(),
+        email: type === 'EMAIL' ? cleanIdentifier : (email ? email.trim().toLowerCase() : ""),
         phoneNumber: type === 'PHONE' ? searchIdentifier : null,
         countryCode: type === 'PHONE' ? countryCode : null,
         password: hashedPassword,
@@ -354,9 +363,14 @@ exports.handleAuth = async (req, res) => {
       return res.status(201).json({ success: true, token, fanName: name, id: newFan._id });
     }
   } catch (error) {
+    // 💡 ASTUCE : Si l'erreur vient d'un index MongoDB caché, on le verra ici
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Erreur de doublon : cet utilisateur existe déjà quelque part." });
+    }
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 exports.updateMe = async (req, res) => {
