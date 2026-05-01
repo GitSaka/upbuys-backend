@@ -1,4 +1,7 @@
 const Transaction = require('../models/Transaction');
+const Fan = require('../models/Fan');
+const mongoose = require('mongoose');
+const Course = require('../models/Course');
 // const Enrollment = require('../models/Enrollment');
 
 exports.getCoachEarnings = async (req, res) => {
@@ -31,14 +34,6 @@ exports.getCoachEarnings = async (req, res) => {
   }
 };
 
-
-const Transaction = require('../models/Transaction');
-const Fan = require('../models/Fan');
-const mongoose = require('mongoose');
-
-const Transaction = require('../models/Transaction');
-const Fan = require('../models/Fan');
-const mongoose = require('mongoose');
 
 exports.getCoachDashboardData = async (req, res) => {
   try {
