@@ -178,6 +178,11 @@ exports.verifyPayment = async (req, res) => {
 
     // 🔹 Paiement approuvé → activer l’accès au cours
     if (fedaTx.status === "approved") {
+
+       await Course.findByIdAndUpdate(localTx.courseId, { 
+      $inc: { salesCount: 1 } 
+        });
+
       const enrollment = await Enrollment.findOneAndUpdate(
         { student: localTx.customerId, course: localTx.courseId },
         {
