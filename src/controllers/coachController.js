@@ -190,6 +190,7 @@ exports.getWalletStats = async (req, res) => {
         totalEarnings, // Ce qu'il a généré au total
         totalWithdrawn, // Ce qu'il a déjà récupéré
         availableBalance, // Ce qu'il peut retirer là maintenant
+        pendingWithdrawals: totalWithdrawn - (salesAgg[0]?.total - totalEarnings || 0),
         commissionRate: "10%"
       }
     });
