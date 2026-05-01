@@ -14,8 +14,8 @@ router.put('/update/:slug',protect, updateUserProfile);
 
 
 // Facebook OAuth
-router.get('/facebook', facebookRedirect);
-router.get('/facebook/callback', facebookCallback);
+// router.get('/facebook', facebookRedirect);
+// router.get('/facebook/callback', facebookCallback);
 
 router.get("/me", protect, getMe);
 
