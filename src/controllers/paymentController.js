@@ -172,12 +172,13 @@ exports.verifyPayment = async (req, res) => {
     console.log("FedaPay Transaction:", fedaTx);
 
     // 🔹 Mettre à jour le statut exact renvoyé par FedaPay
+    const oldStatus = localTx.status; 
     localTx.status = fedaTx.status;
     localTx.fedaTransactionId = fedaTransactionId;
     await localTx.save();
 
     // 🔹 Paiement approuvé → activer l’accès au cours
-    if (fedaTx.status === "approved") {
+    if (fedaTx.status === "approved" && oldStatus !== "approved") {
 
        await Course.findByIdAndUpdate(localTx.courseId, { 
       $inc: { salesCount: 1 } 
