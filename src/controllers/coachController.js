@@ -2,6 +2,7 @@ const Transaction = require('../models/Transaction');
 const Fan = require('../models/Fan');
 const mongoose = require('mongoose');
 const Course = require('../models/Course');
+const Withdrawal = require('../models/Withdrawal');
 // const Enrollment = require('../models/Enrollment');
 
 exports.getCoachEarnings = async (req, res) => {
@@ -158,6 +159,118 @@ exports.getCoachAudience = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la récupération de l'audience" });
   }
 };
+
+
+
+exports.getWalletStats = async (req, res) => {
+  try {
+    const coachId = new mongoose.Types.ObjectId(String(req.user.id));
+
+    // 1. Calculer le Chiffre d'Affaires Brut (Approved)
+    const sales = await Transaction.aggregate([
+      { $match: { coachId: coachId, status: 'approved' } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const totalEarnings = sales[0]?.total || 0;
+
+    // 2. Calculer le total déjà retiré (Pending + Completed)
+    const withdrawals = await Withdrawal.aggregate([
+      { $match: { coachId: coachId, status: { $in: ['pending', 'completed'] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const totalWithdrawn = withdrawals[0]?.total || 0;
+
+    // 3. Calculer la commission (ex: 10%)
+    const commission = totalEarnings * 0.10;
+    const availableBalance = totalEarnings - commission - totalWithdrawn;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalEarnings, // Ce qu'il a généré au total
+        totalWithdrawn, // Ce qu'il a déjà récupéré
+        availableBalance, // Ce qu'il peut retirer là maintenant
+        commissionRate: "10%"
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.requestWithdrawal = async (req, res) => {
+  try {
+    const { amount, method, phoneNumber } = req.body;
+    const coachId = new mongoose.Types.ObjectId(String(req.user.id));
+
+    // 1️⃣ Vérification du montant minimum
+    if (amount < 5000) {
+      return res.status(400).json({ message: "Le montant minimum est de 5000 CFA" });
+    }
+
+    // 2️⃣ RECALCUL DU SOLDE (Sécurité maximale)
+    // On refait exactement le même calcul que dans getWalletStats
+    const salesAgg = await Transaction.aggregate([
+      { $match: { coachId, status: 'approved' } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const totalEarnings = salesAgg[0]?.total || 0;
+
+    const withdrawalsAgg = await Withdrawal.aggregate([
+      { $match: { coachId, status: { $in: ['pending', 'completed'] } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const totalWithdrawn = withdrawalsAgg[0]?.total || 0;
+
+    const availableBalance = (totalEarnings * 0.90) - totalWithdrawn; // 10% frais inclus
+
+    // 3️⃣ Vérifier si le coach a assez d'argent
+    if (amount > availableBalance) {
+      return res.status(400).json({ 
+        message: `Solde insuffisant. Vous pouvez retirer max ${Math.floor(availableBalance)} CFA` 
+      });
+    }
+
+    // 4️⃣ Créer la demande
+    const newWithdrawal = new Withdrawal({
+      coachId,
+      amount,
+      method,
+      phoneNumber,
+      status: 'pending'
+    });
+
+    await newWithdrawal.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Demande de retrait enregistrée ! Elle sera traitée sous 24h/48h. 🚀",
+      data: newWithdrawal
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+exports.getWithdrawalHistory = async (req, res) => {
+  try {
+    const coachId = req.user.id;
+    
+    const history = await Withdrawal.find({ coachId })
+      .sort({ createdAt: -1 }); // Du plus récent au plus ancien
+
+    res.status(200).json({
+      success: true,
+      data: history
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
 
 
 
