@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const {getCoachEarnings} =  require('../controllers/coachController')
+const {getCoachEarnings,getCoachDashboardData} =  require('../controllers/coachController')
 
 router.get('/earnings',getCoachEarnings);
+router.get('/stats',getCoachDashboardData);
 
 
 module.exports = router
