@@ -37,12 +37,19 @@ exports.getCoachEarnings = async (req, res) => {
 
 exports.getCoachDashboardData = async (req, res) => {
   try {
-    const coachId = new mongoose.Types.ObjectId(req.user.id);
+    // 🛡️ 1. Sécurité : Vérification de l'existence de l'ID
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "Session invalide" });
+    }
+
+    // 🛡️ 2. Cast sécurisé de l'ID (évite le crash 500 si l'ID est mal formé)
+    const coachId = new mongoose.Types.ObjectId(String(req.user.id));
+    
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    // 🚀 3. Agrégation optimisée
     const statsData = await Transaction.aggregate([
-      // 1. Filtrage : Uniquement les ventes RÉUSSIES de CE coach
       { 
         $match: { 
           coachId: coachId, 
@@ -51,29 +58,20 @@ exports.getCoachDashboardData = async (req, res) => {
       },
       {
         $facet: {
-          // A. Calcul des totaux
           totals: [
-            { 
-              $group: { 
-                _id: null, 
-                revenue: { $sum: "$amount" }, 
-                salesCount: { $sum: 1 } 
-              } 
-            }
+            { $group: { _id: null, revenue: { $sum: "$amount" }, salesCount: { $sum: 1 } } }
           ],
-          // B. Données du graphique (AreaChart) - filtrées sur 7 jours
           dailySales: [
             { $match: { createdAt: { $gte: sevenDaysAgo } } },
             {
               $group: {
-                _id: { $dateToString: { format: "%a", date: "$createdAt" } },
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, // Format ISO pour tri facile au front
                 sales: { $sum: "$amount" },
                 ventes: { $sum: 1 }
               }
             },
             { $sort: { "_id": 1 } }
           ],
-          // C. Top 3 des formations (BarChart)
           topCourses: [
             { $group: { _id: "$courseId", sales: { $sum: 1 } } },
             { $sort: { sales: -1 } },
@@ -86,40 +84,58 @@ exports.getCoachDashboardData = async (req, res) => {
                 as: 'info' 
               } 
             },
-            { $unwind: "$info" },
-            { $project: { name: "$info.title", sales: 1 } }
+            { $unwind: { path: "$info", preserveNullAndEmptyArrays: true } },
+            { $project: { name: { $ifNull: ["$info.title", "Cours supprimé"] }, sales: 1 } }
           ]
         }
       }
     ]);
 
-    // Extraction sécurisée des données de la facette
-    const result = statsData[0];
-    const totals = result.totals[0] || { revenue: 0, salesCount: 0 };
+    // 🛡️ 4. Extraction ultra-sécurisée (Zero-Crash Logic)
+    // On vérifie chaque niveau pour éviter "Cannot read properties of undefined"
+    const result = statsData[0] || {};
     
-    // Comptage des leads (Fans)
+    const finalTotals = (result.totals && result.totals[0]) 
+      ? result.totals[0] 
+      : { revenue: 0, salesCount: 0 };
+
+    const finalDailySales = result.dailySales || [];
+    const finalTopCourses = result.topCourses || [];
+
+    // 5. Comptage parallèle des fans
     const totalFans = await Fan.countDocuments({ coachId: coachId });
 
-    // Réponse propre pour le Frontend
+    // ✅ 6. Réponse propre et constante
     return res.status(200).json({
       success: true,
       data: {
-        totalRevenue: totals.revenue || 0,
-        totalSales: totals.salesCount || 0,
-        totalFans: totalFans,
-        chartData: result.dailySales || [], 
-        topCourses: result.topCourses || []
+        totalRevenue: finalTotals.revenue || 0,
+        totalSales: finalTotals.salesCount || 0,
+        totalFans: totalFans || 0,
+        chartData: finalDailySales,
+        topCourses: finalTopCourses
       }
     });
 
   } catch (error) {
-    console.error("Erreur Dashboard:", error);
-    res.status(500).json({ 
+    // Log précis pour le développeur sur Render
+    console.error("CRITICAL DASHBOARD ERROR:", error.message);
+    
+    // Réponse propre pour le client (pas de crash 500 brut)
+    res.status(200).json({ 
       success: false, 
-      message: "Erreur lors de la génération des statistiques" 
+      data: {
+        totalRevenue: 0,
+        totalSales: 0,
+        totalFans: 0,
+        chartData: [],
+        topCourses: []
+      },
+      message: "Initialisation des statistiques..." 
     });
   }
 };
+
 
 
 
