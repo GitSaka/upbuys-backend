@@ -3,7 +3,7 @@ const { register } = require('../controllers/AuthController');
 const { login } = require('../controllers/AuthController');
 const router = express.Router();
 const protect = require("../middlewares/authMiddleware");
-const { facebookRedirect,getMe, facebookCallback ,updateUserProfile} = require("../controllers/AuthController")
+const {getMe, updateUserProfile} = require("../controllers/AuthController")
 
 
 // Route : POST /api/auth/register
