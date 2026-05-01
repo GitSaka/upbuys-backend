@@ -145,8 +145,6 @@ exports.updateUserProfile = async (req, res) => {
 };
 
 
-
-
 exports.getMe = async (req, res) => {
   try {
     const userId = req.user.id; // récupéré depuis le middleware auth (JWT)

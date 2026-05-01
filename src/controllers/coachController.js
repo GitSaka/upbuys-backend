@@ -35,6 +35,7 @@ exports.getCoachEarnings = async (req, res) => {
 };
 
 
+
 exports.getCoachDashboardData = async (req, res) => {
   try {
     // 🛡️ 1. Sécurité : Vérification de l'existence de l'ID
@@ -135,6 +136,29 @@ exports.getCoachDashboardData = async (req, res) => {
     });
   }
 };
+
+
+
+exports.getCoachAudience = async (req, res) => {
+  try {
+    const coachId = req.user.id;
+
+    // On récupère tous les fans du coach
+    // On peut trier par date de dernière visite
+    const audience = await Fan.find({ coachId })
+      .select('name email phoneNumber status createdAt lastVisit')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: audience.length,
+      data: audience
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération de l'audience" });
+  }
+};
+
 
 
 
