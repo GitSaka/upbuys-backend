@@ -248,7 +248,7 @@ exports.requestWithdrawal = async (req, res) => {
     const newWithdrawal = new Withdrawal({
       coachId,
       amount: amountToWithdraw,
-      method,
+      paymentMethod: method,
       phoneNumber,
       status: 'pending'
     });
