@@ -198,43 +198,56 @@ exports.getWalletStats = async (req, res) => {
   }
 };
 
+// Assure-toi que ces 3 lignes sont bien en haut de ton fichier coachController.js
+// const Withdrawal = require('../models/Withdrawal');
+// const Transaction = require('../models/Transaction');
+// const mongoose = require('mongoose');
+
 exports.requestWithdrawal = async (req, res) => {
   try {
     const { amount, method, phoneNumber } = req.body;
+    
+    // 🛡️ 1. Sécurité : Vérifier l'ID du coach
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Session expirée, reconnectez-vous" });
+    }
     const coachId = new mongoose.Types.ObjectId(String(req.user.id));
 
-    // 1️⃣ Vérification du montant minimum
-    if (amount < 5000) {
+    // 🛡️ 2. Validation du montant envoyé par le front
+    const amountToWithdraw = Number(amount);
+    if (isNaN(amountToWithdraw) || amountToWithdraw < 5000) {
       return res.status(400).json({ message: "Le montant minimum est de 5000 CFA" });
     }
 
-    // 2️⃣ RECALCUL DU SOLDE (Sécurité maximale)
-    // On refait exactement le même calcul que dans getWalletStats
+    // 🚀 3. RECALCUL DU SOLDE (Audit en temps réel)
+    // Ventes approuvées
     const salesAgg = await Transaction.aggregate([
-      { $match: { coachId, status: 'approved' } },
+      { $match: { coachId: coachId, status: 'approved' } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
-    const totalEarnings = salesAgg[0]?.total || 0;
+    const totalEarnings = (salesAgg.length > 0) ? salesAgg[0].total : 0;
 
+    // Retraits déjà effectués ou en attente
     const withdrawalsAgg = await Withdrawal.aggregate([
-      { $match: { coachId, status: { $in: ['pending', 'completed'] } } },
+      { $match: { coachId: coachId, status: { $in: ['pending', 'completed'] } } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
-    const totalWithdrawn = withdrawalsAgg[0]?.total || 0;
+    const totalWithdrawn = (withdrawalsAgg.length > 0) ? withdrawalsAgg[0].total : 0;
 
-    const availableBalance = (totalEarnings * 0.90) - totalWithdrawn; // 10% frais inclus
+    // Calcul net (10% de frais plateforme)
+    const availableBalance = (totalEarnings * 0.90) - totalWithdrawn;
 
-    // 3️⃣ Vérifier si le coach a assez d'argent
-    if (amount > availableBalance) {
+    // 🛡️ 4. Vérification finale du solde
+    if (amountToWithdraw > availableBalance) {
       return res.status(400).json({ 
-        message: `Solde insuffisant. Vous pouvez retirer max ${Math.floor(availableBalance)} CFA` 
+        message: `Solde insuffisant. Votre maximum retirable est de ${Math.floor(availableBalance)} CFA` 
       });
     }
 
-    // 4️⃣ Créer la demande
+    // ✅ 5. CRÉATION DE LA DEMANDE
     const newWithdrawal = new Withdrawal({
       coachId,
-      amount,
+      amount: amountToWithdraw,
       method,
       phoneNumber,
       status: 'pending'
@@ -242,16 +255,22 @@ exports.requestWithdrawal = async (req, res) => {
 
     await newWithdrawal.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Demande de retrait enregistrée ! Elle sera traitée sous 24h/48h. 🚀",
+      message: "Demande de retrait enregistrée ! Elle sera traitée sous 24h. 🚀",
       data: newWithdrawal
     });
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("ERREUR RETRAIT :", error.message);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Une erreur interne est survenue",
+      error: error.message 
+    });
   }
 };
+
 
 
 exports.getWithdrawalHistory = async (req, res) => {
