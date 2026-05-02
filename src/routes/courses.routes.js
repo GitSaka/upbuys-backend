@@ -12,7 +12,7 @@ router.get("/get-courses/:id", auth, getSingleCourse )
 router.delete("/delete-course/:id", auth, deleteCourse )
 router.put("/update-course/:id", auth, updateCourse )
 router.get("/all-withdrawals", auth, getAllWithdrawals )
-router.put("/all-withdrawals/:id", auth, validateWithdrawal)
+router.put("/validate-withdrawal/:id", auth, validateWithdrawal)
 
 // Route pour changer uniquement le statut (PATCH)
 router.patch('/courses/:id/status',auth, toggleCourseStatus);
