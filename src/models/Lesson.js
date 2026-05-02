@@ -18,7 +18,7 @@ const lessonSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ['video', 'audio', 'text'],
+      enum: ['video', 'audio', 'text','pdf'],
       default: 'video',
     },
 
