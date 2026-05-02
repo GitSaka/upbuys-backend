@@ -10,6 +10,7 @@ router.post('/webhook', paymentController.fedapayWebhook);
 // 2. Vérifier le statut (Après redirection de l'élève)
 router.get('/callback/:transactionId', paymentController.verifyPayment);
 router.get('/check/:courseId', fanMiddleware, paymentController.check);
+router.get('/details/:transactionId', fanMiddleware, paymentController.getTransactionDetails);
 // La route pour recevoir les signaux automatiques de FedaPay
 
 

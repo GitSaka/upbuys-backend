@@ -2,6 +2,7 @@ const { FedaPay, Transaction: FedaTransaction } = require('fedapay');
 const Transaction = require('../models/Transaction');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
+const { sendWelcomeEmail } = require('../services/mailService');
 require('dotenv').config(); // pour charger .env
 FedaPay.setApiKey(process.env.FEDAPAY_SECRET_KEY);
 FedaPay.setEnvironment('sandbox'); // Sandbox pour test
@@ -252,6 +253,9 @@ exports.fedapayWebhook = async (req, res) => {
     txn.status = 'approved';
     await txn.save();
 
+     //Mise à jour Compteur Ventes du Cours
+    await Course.findByIdAndUpdate(txn.courseId._id, { $inc: { salesCount: 1 } });
+
     // 🏆 DONNER ACCÈS AU COURS (Enrollment)
     await Enrollment.findOneAndUpdate(
       { student: txn.customerId, course: txn.courseId },
@@ -263,6 +267,23 @@ exports.fedapayWebhook = async (req, res) => {
         status: "active"
       },
       { upsert: true }
+    );
+
+     // 🎯 Mise à jour de l'email du Fan pour tes futures newsletters
+    const customerEmail = event.customer?.email;
+    if (customerEmail) {
+        await Fan.findByIdAndUpdate(txn.customerId, { email: customerEmail });
+    }
+
+    const emailDest = event.customer?.email || "client@empire.com"; 
+    const loginUrl = `${process.env.FRONTEND_VERSEL_URL}/empire/${txn.coachId.slug}/my-courses`;
+
+     // On n'attend pas l'envoi du mail pour répondre à FedaPay (vitesse)
+    sendWelcomeEmail(
+      emailDest, 
+      event.customer?.firstname || "Élève", 
+      txn.courseId.title, 
+      loginUrl
     );
 
     console.log(`✅ Accès accordé au client ${txn.customerId} pour le cours ${txn.courseId}`);
@@ -302,5 +323,19 @@ exports.check = async (req, res) => {
   } catch (error) {
     console.error("Check access error:", error);
     return res.status(500).json({ success: false, hasAccess: false, message: "Erreur serveur" });
+  }
+};
+
+exports.getTransactionDetails = async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    // On récupère la transaction et on "populate" pour avoir le titre du cours
+    const txn = await Transaction.findById(transactionId).populate('courseId', 'title thumbnail lessons');
+    
+    if (!txn) return res.status(404).json({ message: "Transaction introuvable" });
+
+    res.status(200).json({ success: true, data: txn });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
