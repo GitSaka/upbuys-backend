@@ -166,38 +166,47 @@ exports.getWalletStats = async (req, res) => {
   try {
     const coachId = new mongoose.Types.ObjectId(String(req.user.id));
 
-    // 1. Calculer le Chiffre d'Affaires Brut (Approved)
-    const sales = await Transaction.aggregate([
-      { $match: { coachId: coachId, status: 'approved' } },
+    // 1. Total encaissé (Approved)
+    const salesAgg = await Transaction.aggregate([
+      { $match: { coachId, status: 'approved' } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
-    const totalEarnings = sales[0]?.total || 0;
+    const totalEarnings = salesAgg[0]?.total || 0;
 
-    // 2. Calculer le total déjà retiré (Pending + Completed)
-    const withdrawals = await Withdrawal.aggregate([
-      { $match: { coachId: coachId, status: { $in: ['pending', 'completed'] } } },
+    // 2. Total déjà PAYÉ (Completed uniquement)
+    const completedAgg = await Withdrawal.aggregate([
+      { $match: { coachId, status: 'completed' } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
-    const totalWithdrawn = withdrawals[0]?.total || 0;
+    const totalPaid = completedAgg[0]?.total || 0;
 
-    // 3. Calculer la commission (ex: 10%)
-    const commission = totalEarnings * 0.10;
-    const availableBalance = totalEarnings - commission - totalWithdrawn;
+    // 3. Total EN ATTENTE (Pending uniquement) - C'est ta carte orange !
+    const pendingAgg = await Withdrawal.aggregate([
+      { $match: { coachId, status: 'pending' } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const pendingWithdrawals = pendingAgg[0]?.total || 0;
+
+    // 4. Calcul du Solde Retirable (90% du CA - tout ce qui est sorti ou bloqué)
+    const netEarnings = totalEarnings * 0.90; // On enlève les 10% de frais plateforme
+    const availableBalance = netEarnings - totalPaid - pendingWithdrawals;
 
     res.status(200).json({
       success: true,
       data: {
-        totalEarnings, // Ce qu'il a généré au total
-        totalWithdrawn, // Ce qu'il a déjà récupéré
-        availableBalance, // Ce qu'il peut retirer là maintenant
-        
+        totalEarnings,       // Somme totale générée
+        availableBalance: Math.max(0, availableBalance), // Evite les nombres négatifs
+        pendingWithdrawals,  // La carte orange
+        totalPaid,           // Ce qu'il a déjà reçu
         commissionRate: "10%"
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Erreur Wallet Stats:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // Assure-toi que ces 3 lignes sont bien en haut de ton fichier coachController.js
 // const Withdrawal = require('../models/Withdrawal');
