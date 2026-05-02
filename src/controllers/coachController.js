@@ -208,10 +208,6 @@ exports.getWalletStats = async (req, res) => {
 };
 
 
-// Assure-toi que ces 3 lignes sont bien en haut de ton fichier coachController.js
-// const Withdrawal = require('../models/Withdrawal');
-// const Transaction = require('../models/Transaction');
-// const mongoose = require('mongoose');
 
 exports.requestWithdrawal = async (req, res) => {
   try {
