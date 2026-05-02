@@ -296,6 +296,27 @@ exports.getWithdrawalHistory = async (req, res) => {
 };
 
 
+exports.getRecentSales = async (req, res) => {
+  try {
+    const coachId = req.user.id;
+
+    const sales = await Transaction.find({ coachId })
+      .populate('courseId', 'title thumbnail') // Pour savoir quel cours a été acheté
+      .populate('customerId', 'name phoneNumber') // Pour savoir qui a acheté
+      .sort({ createdAt: -1 })
+      .limit(24);
+
+    res.status(200).json({
+      success: true,
+      data: sales
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération des ventes" });
+  }
+};
+
+
+
 
 
 
