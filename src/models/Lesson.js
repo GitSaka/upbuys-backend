@@ -27,6 +27,12 @@ const lessonSchema = new mongoose.Schema(
       trim: true,
     },
 
+    videoSource: {
+          type: String,
+          enum: ['cloudinary', 'youtube', 'vimeo', 'external'],
+          default: 'cloudinary', // Par défaut, on reste sur ton système actuel
+    },
+
     duration: {
       type: String,
       trim: true,

@@ -87,6 +87,7 @@ exports.initiatePayment = async (req, res) => {
       amount: course.price,
       status: 'pending',
       mode: 'sandbox',
+      mode: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox',
       paymentMethod: 'unknown'
     });
 
@@ -249,8 +250,11 @@ exports.fedapayWebhook = async (req, res) => {
       return res.sendStatus(200);
     }
 
+    const realMethod = event.payment_method?.name || "Mobile Money";
+
     // Mettre à jour la transaction locale
     txn.status = 'approved';
+    txn.paymentMethod = realMethod;
     await txn.save();
 
      //Mise à jour Compteur Ventes du Cours
@@ -268,6 +272,11 @@ exports.fedapayWebhook = async (req, res) => {
       },
       { upsert: true }
     );
+
+    
+
+    
+   
 
      // 🎯 Mise à jour de l'email du Fan pour tes futures newsletters
     const customerEmail = event.customer?.email;
